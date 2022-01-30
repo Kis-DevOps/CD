@@ -1,0 +1,40 @@
+pipeline {
+    agent any
+    def buildNumber = BUILD_NUMBER
+    tools {
+    maven 'Maven'
+        }
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git 'https://github.com/Kis-DevOps/java-web-app-docker.git'
+            }
+        }
+        stage('Maven Clean Package') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        stage('Build Doker Images') {
+            steps {
+                sh "docker build -t kish05/java-web-app-docker:${buildNumber} ."
+            }
+        }
+        stage('Docker login and Push') {
+            steps {
+                withCredentials([string(credentialsId: 'docker_hub_pwd', variable: 'DockerHubPwd')]) {
+                sh "docker login -u kisho5 -p ${DockerHubPwd}"
+                  }
+             sh "docker push kish05/java-web-app-docker:${buildNumber}"
+            }
+        }
+        stage('Deploy Docker App to QA Server') {
+            steps {
+                sshagent(['Docker_Server_SSH_Agent']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@3.133.96.130 docker rm -f javawebcontainer || true'
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@3.133.96.130 docker run -d -p 8080:8080 --name javawebcontainer kish05/java-web-app-docker:${buildNumber}'
+}
+            }
+        }
+    }
+}
